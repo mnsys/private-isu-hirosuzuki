@@ -265,6 +265,46 @@ func getTemplPath(filename string) string {
 	return path.Join("templates", filename)
 }
 
+var IMAGE_DIR = "/var/www/public/image"
+
+func createImagefile(id int, mimetype string, imgdata []byte) {
+	ext := ""
+	if mimetype == "image/jpeg" {
+		ext = ".jpg"
+	}
+	if mimetype == "image/png" {
+		ext = ".png"
+	}
+	if mimetype == "image/gif" {
+		ext = ".gif"
+	}
+	filename := fmt.Sprintf("%s/%d%s", IMAGE_DIR, id, ext)
+	log.Println("createImagefile: ", filename)
+	file, err := os.Create(filename)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	defer file.Close()
+	_, err = file.Write(imgdata)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+}
+
+func initImages(w http.ResponseWriter, r *http.Request) {
+	log.Println("Init Images")
+	var posts []Post
+	err := db.Select(&posts, "SELECT id, user_id, mime, imgdata, body, created_at FROM posts")
+	if err != nil {
+		log.Print(err)
+	}
+	for _, row := range posts {
+		createImagefile(row.ID, row.Mime, row.Imgdata)
+	}
+}
+
 func getInitialize(w http.ResponseWriter, r *http.Request) {
 	pprofiler.Start(70)
 	dbInitialize()
@@ -672,6 +712,7 @@ func postIndex(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		return
 	}
+	createImagefile(int(pid), mime, filedata)
 
 	http.Redirect(w, r, "/posts/"+strconv.FormatInt(pid, 10), http.StatusFound)
 }
@@ -683,7 +724,7 @@ func getImage(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-
+	log.Print("getImage:", pid)
 	post := Post{}
 	err = db.Get(&post, "SELECT * FROM `posts` WHERE `id` = ?", pid)
 	if err != nil {
@@ -702,6 +743,7 @@ func getImage(w http.ResponseWriter, r *http.Request) {
 			log.Print(err)
 			return
 		}
+		createImagefile(post.ID, post.Mime, post.Imgdata)
 		return
 	}
 
@@ -863,6 +905,7 @@ func main() {
 	mux := goji.NewMux()
 
 	mux.HandleFunc(pat.Get("/initialize"), getInitialize)
+	mux.HandleFunc(pat.Get("/initimage"), initImages)
 	mux.HandleFunc(pat.Get("/login"), getLogin)
 	mux.HandleFunc(pat.Post("/login"), postLogin)
 	mux.HandleFunc(pat.Get("/register"), getRegister)

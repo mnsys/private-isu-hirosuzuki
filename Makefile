@@ -17,6 +17,7 @@ copy-static-files-1:
 	ssh $(HOST1) sudo rsync -av /home/isucon/private_isu/webapp/public/ /var/www/public/
 
 deploy-conf-1:
+	ssh $(HOST1) sudo mkdir -p -m 777 /var/www/public/image
 	ssh $(HOST1) sudo tee /etc/nginx/nginx.conf >/dev/null < host1-nginx.conf
 	ssh $(HOST1) sudo nginx -t
 	ssh $(HOST1) sudo systemctl restart nginx	

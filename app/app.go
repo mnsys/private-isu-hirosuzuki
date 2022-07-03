@@ -208,20 +208,8 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 		}
 
 		p.Comments = comments
-
-		err = db.Get(&p.User, "SELECT * FROM `users` WHERE `id` = ?", p.UserID)
-		if err != nil {
-			return nil, err
-		}
-
 		p.CSRFToken = csrfToken
-
-		if p.User.DelFlg == 0 {
-			posts = append(posts, p)
-		}
-		if len(posts) >= postsPerPage {
-			break
-		}
+		posts = append(posts, p)
 	}
 
 	return posts, nil
@@ -427,16 +415,26 @@ func getLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
+func selectPosts(postfixSQL string, args ...any) []Post {
+	results := []Post{}
+	sql := "SELECT p.id, p.user_id, p.body, p.mime, p.created_at, u.id, u.account_name, u.passhash, u.authority, u.del_flg, u.created_at FROM posts p JOIN users u ON u.id = p.user_id "
+	rows, err := db.DB.Query(sql+postfixSQL, args...)
+	if err != nil {
+		log.Print(err)
+		return results
+	}
+	for rows.Next() {
+		p := Post{}
+		rows.Scan(&p.ID, &p.UserID, &p.Body, &p.Mime, &p.CreatedAt, &p.User.ID, &p.User.AccountName, &p.User.Passhash, &p.User.Authority, &p.User.DelFlg, &p.User.CreatedAt)
+		results = append(results, p)
+	}
+	return results
+}
+
 func getIndex(w http.ResponseWriter, r *http.Request) {
 	me := getSessionUser(r)
 
-	results := []Post{}
-
-	err := db.Select(&results, "SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` ORDER BY `created_at` DESC")
-	if err != nil {
-		log.Print(err)
-		return
-	}
+	results := selectPosts("WHERE u.del_flg = 0 ORDER BY p.created_at DESC LIMIT 20")
 
 	posts, err := makePosts(results, getCSRFToken(r), false)
 	if err != nil {
@@ -476,13 +474,7 @@ func getAccountName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := []Post{}
-
-	err = db.Select(&results, "SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` WHERE `user_id` = ? ORDER BY `created_at` DESC", user.ID)
-	if err != nil {
-		log.Print(err)
-		return
-	}
+	results := selectPosts("WHERE p.user_id = ? ORDER BY p.created_at DESC LIMIT 20", user.ID)
 
 	posts, err := makePosts(results, getCSRFToken(r), false)
 	if err != nil {
@@ -565,12 +557,7 @@ func getPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := []Post{}
-	err = db.Select(&results, "SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` WHERE `created_at` <= ? ORDER BY `created_at` DESC", t.Format(ISO8601Format))
-	if err != nil {
-		log.Print(err)
-		return
-	}
+	results := selectPosts("WHERE p.created_at <= ? ORDER BY p.created_at DESC LIMIT 20", t.Format(ISO8601Format))
 
 	posts, err := makePosts(results, getCSRFToken(r), false)
 	if err != nil {
@@ -601,12 +588,7 @@ func getPostsID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := []Post{}
-	err = db.Select(&results, "SELECT * FROM `posts` WHERE `id` = ?", pid)
-	if err != nil {
-		log.Print(err)
-		return
-	}
+	results := selectPosts("WHERE p.id = ? LIMIT 20", pid)
 
 	posts, err := makePosts(results, getCSRFToken(r), true)
 	if err != nil {

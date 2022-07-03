@@ -180,17 +180,18 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 	var posts []Post
 
 	for _, p := range results {
-		err := db.Get(&p.CommentCount, "SELECT COUNT(*) AS `count` FROM `comments` WHERE `post_id` = ?", p.ID)
+		tx, err := db.DB.Begin()
 		if err != nil {
 			return nil, err
 		}
+		defer tx.Rollback()
 
-		query := "SELECT c.id, c.post_id, c.user_id, c.comment, c.created_at, u.id, u.account_name, u.passhash, u.authority, u.del_flg, u.created_at FROM comments c JOIN users u ON u.id = c.user_id WHERE c.post_id = ? ORDER BY c.created_at DESC"
+		query := "SELECT SQL_CALC_FOUND_ROWS c.id, c.post_id, c.user_id, c.comment, c.created_at, u.id, u.account_name, u.passhash, u.authority, u.del_flg, u.created_at FROM comments c JOIN users u ON u.id = c.user_id WHERE c.post_id = ? ORDER BY c.created_at DESC"
 		if !allComments {
 			query += " LIMIT 3"
 		}
 
-		rows, err := db.DB.Query(query, p.ID)
+		rows, err := tx.Query(query, p.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -200,6 +201,15 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 			rows.Scan(&c.ID, &c.PostID, &c.UserID, &c.Comment, &c.CreatedAt, &c.User.ID, &c.User.AccountName, &c.User.Passhash, &c.User.Authority, &c.User.DelFlg, &c.User.CreatedAt)
 			comments = append(comments, c)
 		}
+
+		if !allComments {
+			row := tx.QueryRow("SELECT FOUND_ROWS()")
+			row.Scan(&p.CommentCount)
+		} else {
+			p.CommentCount = len(comments)
+		}
+
+		tx.Commit()
 
 		// reverse
 		for i, j := 0, len(comments)-1; i < j; i, j = i+1, j-1 {

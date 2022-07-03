@@ -100,7 +100,7 @@ duration_index = 10
 #name = 'GET /images/*'
 
 [[bundle]]
-regexp = '^(GET|HEAD) /image/[0-9]+\.(jpg|png)'
+regexp = '^(GET|HEAD) /image/[0-9]+\.(jpg|png|gif)'
 name = 'GET /images/*'
 
 [[bundle]]
@@ -111,6 +111,9 @@ name = 'GET /posts/*'
 regexp = '^(GET|HEAD) /@[0-9A-Za-z]+'
 name = 'GET /@*'
 
+[[bundle]]
+regexp = '^(GET|HEAD) /posts\?max_created_at='
+name = 'GET /posts?max_created_at=*'
 
 ################################################################################
 # Replace

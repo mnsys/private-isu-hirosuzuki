@@ -424,10 +424,9 @@ func getLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-func selectPosts(postfixSQL string, args ...any) []Post {
+func selectPosts(sql string, args ...any) []Post {
 	results := []Post{}
-	sql := "SELECT p.id, p.user_id, p.body, p.mime, p.created_at, u.id, u.account_name, u.passhash, u.authority, u.del_flg, u.created_at FROM posts p JOIN users u ON u.id = p.user_id "
-	rows, err := db.DB.Query(sql+postfixSQL, args...)
+	rows, err := db.DB.Query(sql, args...)
 	if err != nil {
 		log.Print(err)
 		return results
@@ -457,7 +456,7 @@ func init() {
 func getIndex(w http.ResponseWriter, r *http.Request) {
 	me := getSessionUser(r)
 
-	results := selectPosts("WHERE u.del_flg = 0 ORDER BY p.created_at DESC LIMIT 20")
+	results := selectPosts("SELECT p.id, p.user_id, p.body, p.mime, p.created_at, u.id, u.account_name, u.passhash, u.authority, u.del_flg, u.created_at FROM posts p use index (post_order_idx) JOIN users u use index (primary) ON u.id = p.user_id WHERE u.del_flg = 0 ORDER BY p.created_at DESC LIMIT 20")
 
 	posts, err := makePosts(results, getCSRFToken(r), false)
 	if err != nil {
@@ -488,7 +487,7 @@ func getAccountName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := selectPosts("WHERE p.user_id = ? ORDER BY p.created_at DESC LIMIT 20", user.ID)
+	results := selectPosts("SELECT p.id, p.user_id, p.body, p.mime, p.created_at, u.id, u.account_name, u.passhash, u.authority, u.del_flg, u.created_at FROM posts p JOIN users u ON u.id = p.user_id WHERE p.user_id = ? ORDER BY p.created_at DESC LIMIT 20", user.ID)
 
 	posts, err := makePosts(results, getCSRFToken(r), false)
 	if err != nil {
@@ -571,7 +570,7 @@ func getPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := selectPosts("WHERE p.created_at <= ? ORDER BY p.created_at DESC LIMIT 20", t.Format(ISO8601Format))
+	results := selectPosts("SELECT p.id, p.user_id, p.body, p.mime, p.created_at, u.id, u.account_name, u.passhash, u.authority, u.del_flg, u.created_at FROM posts p JOIN users u ON u.id = p.user_id WHERE p.created_at <= ? ORDER BY p.created_at DESC LIMIT 20", t.Format(ISO8601Format))
 
 	posts, err := makePosts(results, getCSRFToken(r), false)
 	if err != nil {
@@ -602,7 +601,7 @@ func getPostsID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := selectPosts("WHERE p.id = ? LIMIT 20", pid)
+	results := selectPosts("SELECT p.id, p.user_id, p.body, p.mime, p.created_at, u.id, u.account_name, u.passhash, u.authority, u.del_flg, u.created_at FROM posts p JOIN users u ON u.id = p.user_id WHERE p.id = ? LIMIT 20", pid)
 
 	posts, err := makePosts(results, getCSRFToken(r), true)
 	if err != nil {

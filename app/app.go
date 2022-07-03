@@ -21,6 +21,8 @@ import (
 	gsm "github.com/bradleypeabody/gorilla-sessions-memcache"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
+	_ "github.com/hirosuzuki/go-sql-logger"
+	"github.com/hirosuzuki/go-sql-logger/pprofiler"
 	"github.com/jmoiron/sqlx"
 	goji "goji.io"
 	"goji.io/pat"
@@ -264,6 +266,7 @@ func getTemplPath(filename string) string {
 }
 
 func getInitialize(w http.ResponseWriter, r *http.Request) {
+	pprofiler.Start(70)
 	dbInitialize()
 	w.WriteHeader(http.StatusOK)
 }
@@ -851,7 +854,7 @@ func main() {
 		dbname,
 	)
 
-	db, err = sqlx.Open("mysql", dsn)
+	db, err = sqlx.Open("mysql"+os.Getenv("MYSQL_DRIVER_POSTFIX"), dsn)
 	if err != nil {
 		log.Fatalf("Failed to connect to DB: %s.", err.Error())
 	}

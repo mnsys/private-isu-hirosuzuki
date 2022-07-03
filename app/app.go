@@ -306,7 +306,7 @@ func initImages(w http.ResponseWriter, r *http.Request) {
 }
 
 func getInitialize(w http.ResponseWriter, r *http.Request) {
-	pprofiler.Start(70)
+	pprofiler.Start(80)
 	dbInitialize()
 	w.WriteHeader(http.StatusOK)
 }

@@ -431,6 +431,20 @@ func selectPosts(postfixSQL string, args ...any) []Post {
 	return results
 }
 
+var getIndexTemplate *template.Template
+
+func init() {
+	fmap := template.FuncMap{
+		"imageURL": imageURL,
+	}
+	getIndexTemplate = template.Must(template.New("layout.html").Funcs(fmap).ParseFiles(
+		getTemplPath("layout.html"),
+		getTemplPath("index.html"),
+		getTemplPath("posts.html"),
+		getTemplPath("post.html"),
+	))
+}
+
 func getIndex(w http.ResponseWriter, r *http.Request) {
 	me := getSessionUser(r)
 
@@ -442,16 +456,7 @@ func getIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmap := template.FuncMap{
-		"imageURL": imageURL,
-	}
-
-	template.Must(template.New("layout.html").Funcs(fmap).ParseFiles(
-		getTemplPath("layout.html"),
-		getTemplPath("index.html"),
-		getTemplPath("posts.html"),
-		getTemplPath("post.html"),
-	)).Execute(w, struct {
+	getIndexTemplate.Execute(w, struct {
 		Posts     []Post
 		Me        User
 		CSRFToken string

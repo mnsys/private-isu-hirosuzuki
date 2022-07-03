@@ -185,21 +185,20 @@ func makePosts(results []Post, csrfToken string, allComments bool) ([]Post, erro
 			return nil, err
 		}
 
-		query := "SELECT * FROM `comments` WHERE `post_id` = ? ORDER BY `created_at` DESC"
+		query := "SELECT c.id, c.post_id, c.user_id, c.comment, c.created_at, u.id, u.account_name, u.passhash, u.authority, u.del_flg, u.created_at FROM comments c JOIN users u ON u.id = c.user_id WHERE c.post_id = ? ORDER BY c.created_at DESC"
 		if !allComments {
 			query += " LIMIT 3"
 		}
-		var comments []Comment
-		err = db.Select(&comments, query, p.ID)
+
+		rows, err := db.DB.Query(query, p.ID)
 		if err != nil {
 			return nil, err
 		}
-
-		for i := 0; i < len(comments); i++ {
-			err := db.Get(&comments[i].User, "SELECT * FROM `users` WHERE `id` = ?", comments[i].UserID)
-			if err != nil {
-				return nil, err
-			}
+		var comments = []Comment{}
+		for rows.Next() {
+			c := Comment{}
+			rows.Scan(&c.ID, &c.PostID, &c.UserID, &c.Comment, &c.CreatedAt, &c.User.ID, &c.User.AccountName, &c.User.Passhash, &c.User.Authority, &c.User.DelFlg, &c.User.CreatedAt)
+			comments = append(comments, c)
 		}
 
 		// reverse
